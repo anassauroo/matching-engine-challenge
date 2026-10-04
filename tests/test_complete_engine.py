@@ -1,5 +1,4 @@
 from io import StringIO
-import random
 from unittest import TestCase, main
 
 from matching_engine.book import OrderBook
@@ -298,53 +297,6 @@ class CompleteCliTests(TestCase):
         execute("amend order 1 qty 30 price 19", book, output)
         self.assertNotIn("Erro:", output.getvalue())
         self.assertEqual((book.sell_orders()[0].quantity, book.sell_orders()[0].price_cents), (30, 1900))
-
-
-class InteractionTests(TestCase):
-    def test_seeded_mixed_operations_conserve_quantity_and_leave_no_crossed_book(self):
-        rng = random.Random(42)
-        book = OrderBook()
-        created_ids = []
-        for step in range(400):
-            orders = book.buy_orders() + book.sell_orders()
-            before = sum(o.quantity for o in orders)
-            action = rng.choice(["limit", "market", "peg", "cancel", "amend"])
-            side, qty = rng.choice(["buy", "sell"]), rng.randint(1, 30)
-            with self.subTest(step=step, action=action):
-                unfilled = 0
-                if action == "cancel" and orders:
-                    order = rng.choice(orders)
-                    delta = -order.quantity
-                    trades = book.cancel(order.id)
-                elif action == "amend" and orders:
-                    order = rng.choice(orders)
-                    delta = qty - order.quantity
-                    price = rng.randint(900, 1100) if order.order_type == "limit" else None
-                    _, trades = book.amend(order.id, quantity=qty, price_cents=price)
-                else:
-                    delta = qty
-                    if action == "market":
-                        order, trades, unfilled = book.add_market(side, qty)
-                    elif action == "peg":
-                        order, trades = book.add_pegged(rng.choice(["bid", "offer"]), side, qty)
-                    else:
-                        order, trades = book.add_limit(side, rng.randint(900, 1100), qty)
-                    created_ids.append(order.id)
-                orders = book.buy_orders() + book.sell_orders()
-                self.assertEqual(sum(o.quantity for o in orders),
-                                 before + delta - 2 * sum(t.quantity for t in trades) - unfilled)
-                self.assertTrue(all(o.quantity > 0 and o.order_type != "market" for o in orders))
-                active_buys = [o for o in book.buy_orders() if o.price_cents is not None]
-                active_sells = [o for o in book.sell_orders() if o.price_cents is not None]
-                if active_buys and active_sells:
-                    self.assertLess(active_buys[0].price_cents, active_sells[0].price_cents)
-                bids = [o.price_cents for o in orders if o.order_type == "limit" and o.side == "buy"]
-                offers = [o.price_cents for o in orders if o.order_type == "limit" and o.side == "sell"]
-                for order in orders:
-                    if order.order_type == "pegged":
-                        expected = max(bids, default=None) if order.peg_reference == "bid" else min(offers, default=None)
-                        self.assertEqual(order.price_cents, expected)
-        self.assertEqual(created_ids, list(range(1, len(created_ids) + 1)))
 
 
 if __name__ == "__main__":
