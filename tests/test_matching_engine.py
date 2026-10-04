@@ -40,17 +40,20 @@ class BookTests(TestCase):
 
     def test_sequential_unique_ids_across_sides(self):
         book = OrderBook()
-        orders = [book.add_limit(side, 100, 1) for side in ("buy", "sell", "buy")]
+        orders = [book.add_limit(side, 100, 1)[0] for side in ("buy", "sell", "buy")]
         self.assertEqual([order.id for order in orders], [1, 2, 3])
         self.assertEqual([order.arrival_sequence for order in orders], [1, 2, 3])
         self.assertEqual(OrderBook().buy_orders(), [])
 
-    def test_crossed_orders_remain_in_book(self):
+    def test_crossed_orders_execute_at_resting_price(self):
         book = OrderBook()
         book.add_limit("buy", 2000, 10)
-        book.add_limit("sell", 1000, 10)
-        self.assertEqual(len(book.buy_orders()), 1)
-        self.assertEqual(len(book.sell_orders()), 1)
+        order, trades = book.add_limit("sell", 1000, 10)
+        self.assertEqual(order.id, 2)
+        self.assertEqual([(t.price_cents, t.quantity, t.buy_order_id, t.sell_order_id)
+                          for t in trades], [(2000, 10, 1, 2)])
+        self.assertEqual(book.buy_orders(), [])
+        self.assertEqual(book.sell_orders(), [])
 
     def test_empty_and_one_sided_books(self):
         for side in [None, "buy", "sell"]:

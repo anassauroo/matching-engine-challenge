@@ -29,3 +29,11 @@ class LimitOrder:
     price_cents: int
     quantity: int
     arrival_sequence: int
+
+
+@dataclass(frozen=True)
+class Trade:
+    price_cents: int
+    quantity: int
+    buy_order_id: int
+    sell_order_id: int

@@ -1,4 +1,4 @@
-"""Comandos de terminal para a primeira etapa."""
+"""Comandos de terminal para ordens limit com matching."""
 
 import re
 import sys
@@ -15,7 +15,8 @@ HELP = """Comandos:
   help
   exit
 Preço: positivo, com ponto e até duas casas decimais (ex.: 10.50).
-Quantidade: inteira positiva. Nesta etapa, não há matching."""
+Quantidade: inteira positiva. Ordens limit compatíveis geram trades.
+Cada trade usa o preço da ordem que já estava no livro."""
 
 
 def execute(line: str, book: OrderBook, output: TextIO) -> bool:
@@ -38,8 +39,10 @@ def execute(line: str, book: OrderBook, output: TextIO) -> bool:
             if not re.fullmatch(r"[0-9]+", quantity_text):
                 raise ValueError("Quantidade deve ser inteira positiva.")
             quantity = int(quantity_text)
-            order = book.add_limit(side, price_cents, quantity)
+            order, trades = book.add_limit(side, price_cents, quantity)
             print(f"Order created: {order.side} {order.quantity} @ {format_price(order.price_cents)} id {order.id}", file=output)
+            for trade in trades:
+                print(f"Trade, price: {format_price(trade.price_cents)}, qty: {trade.quantity}", file=output)
         else:
             raise ValueError("Comando desconhecido ou argumentos incorretos. Digite help.")
     except ValueError as error:
