@@ -1,1 +1,1 @@
-"""Base de um livro de ofertas em memória."""
+"""Matching engine de um único ativo, inteiramente em memória."""

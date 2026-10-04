@@ -72,7 +72,7 @@ class CliTests(TestCase):
         book = OrderBook()
         execute("limit buy 10 100", book, StringIO())
         before = book.render()
-        invalid = ["unknown", "market buy 10", "limit", "limit buy 10",
+        invalid = ["unknown", "market buy", "limit", "limit buy 10",
                    "limit buy 10 1 extra", "limit other 10 1", "limit buy NaN 1",
                    "limit buy Infinity 1", "limit buy 1.001 1", "limit buy 0 1",
                    "limit sell 10 0", "limit buy 10 -1", "limit buy 10 1.5",

@@ -23,12 +23,16 @@ def format_price(cents: int) -> str:
 
 
 @dataclass(frozen=True)
-class LimitOrder:
+class Order:
+    """Quantidade é o saldo; preço None indica market ou pegged inativa."""
+
     id: int
     side: str
-    price_cents: int
+    price_cents: int | None
     quantity: int
     arrival_sequence: int
+    order_type: str = "limit"
+    peg_reference: str | None = None
 
 
 @dataclass(frozen=True)
