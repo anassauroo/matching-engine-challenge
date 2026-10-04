@@ -125,6 +125,66 @@ class AmendCancelTests(TestCase):
 
 
 class PeggedTests(TestCase):
+    def test_older_repriced_peg_sets_price_then_older_counterparty_sets_next_price(self):
+        # Resultados definidos pela convenção documentada, com preços distintos.
+        for side, reference, initial, opposite, improved, prices in [
+            ("buy", "bid", 1000, 1050, 1100, [1100, 1050]),
+            ("sell", "offer", 1100, 1050, 1000, [1000, 1050]),
+        ]:
+            with self.subTest(side=side):
+                book = OrderBook()
+                book.add_limit(side, initial, 100)
+                book.add_pegged(reference, side, 5)
+                book.add_limit("sell" if side == "buy" else "buy", opposite, 10)
+                _, trades = book.add_limit(side, improved, 5)
+                self.assertEqual([(t.price_cents, t.quantity) for t in trades],
+                                 [(prices[0], 5), (prices[1], 5)])
+                pairs = [(t.buy_order_id, t.sell_order_id) for t in trades]
+                self.assertEqual(pairs, [(2, 3), (4, 3)] if side == "buy" else [(3, 2), (3, 4)])
+                orders = book.buy_orders() + book.sell_orders()
+                self.assertEqual([(o.id, o.quantity, o.price_cents) for o in orders], [(1, 100, initial)])
+
+    def test_counterparty_older_than_repriced_peg_sets_both_execution_prices(self):
+        for side, reference, initial, improved in [("buy", "bid", 1000, 1100),
+                                                   ("sell", "offer", 1100, 1000)]:
+            with self.subTest(side=side):
+                book = OrderBook()
+                book.add_limit(side, initial, 100)
+                book.add_limit("sell" if side == "buy" else "buy", 1050, 10)
+                book.add_pegged(reference, side, 5)
+                _, trades = book.add_limit(side, improved, 5)
+                self.assertEqual([(t.price_cents, t.quantity) for t in trades], [(1050, 5), (1050, 5)])
+                pairs = [(t.buy_order_id, t.sell_order_id) for t in trades]
+                self.assertEqual(pairs, [(3, 2), (4, 2)] if side == "buy" else [(2, 3), (2, 4)])
+
+    def test_inactive_pegs_are_visible_amendable_and_cancellable(self):
+        for reference in ["bid", "offer"]:
+            for side in ["buy", "sell"]:
+                with self.subTest(reference=reference, side=side):
+                    book = OrderBook()
+                    peg, _ = book.add_pegged(reference, side, 10)
+                    output = StringIO()
+                    execute("amend order 1 qty 5", book, output)
+                    self.assertIn("Order amended: id 1", output.getvalue())
+                    self.assertIn(f"5 @ inativa id 1 peg {reference}", book.render())
+                    orders = book.buy_orders() + book.sell_orders()
+                    self.assertEqual(orders[0].arrival_sequence, peg.arrival_sequence)
+                    execute("cancel order 1", book, output)
+                    self.assertIn("Order cancelled", output.getvalue())
+                    self.assertEqual(book.buy_orders() + book.sell_orders(), [])
+
+    def test_market_exhausting_last_reference_does_not_execute_peg_at_stale_price(self):
+        for side, reference in [("buy", "bid"), ("sell", "offer")]:
+            with self.subTest(side=side):
+                book = OrderBook()
+                book.add_limit(side, 1000, 10)
+                book.add_pegged(reference, side, 20)
+                _, trades, unfilled = book.add_market("sell" if side == "buy" else "buy", 15)
+                self.assertEqual([(t.price_cents, t.quantity) for t in trades], [(1000, 10)])
+                self.assertEqual(unfilled, 5)
+                orders = book.buy_orders() + book.sell_orders()
+                self.assertEqual([(o.id, o.quantity, o.price_cents) for o in orders], [(2, 20, None)])
+
     def test_pdf_bid_example_and_mirrored_offer_keep_arrival(self):
         for side, reference, initial, improved in [("buy", "bid", 1000, 1010),
                                                    ("sell", "offer", 1050, 1040)]:

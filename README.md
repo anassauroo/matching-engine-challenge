@@ -20,9 +20,14 @@ Ctrl+C encerram a sessão. O livro começa vazio e os IDs reiniciam a cada execu
 
 | Comando | Descrição |
 | --- | --- |
-| `limit buy|sell <price> <qty>` | Insere uma ordem limit e guarda o saldo não executado |
-| `market buy|sell <qty>` | Executa imediatamente na liquidez disponível |
-| `peg bid|offer buy|sell <qty>` | Insere uma ordem que acompanha bid ou offer |
+| `limit buy <price> <qty>` | Insere uma compra limit e guarda o saldo não executado |
+| `limit sell <price> <qty>` | Insere uma venda limit e guarda o saldo não executado |
+| `market buy <qty>` | Compra imediatamente na liquidez disponível |
+| `market sell <qty>` | Vende imediatamente na liquidez disponível |
+| `peg bid buy <qty>` | Compra acompanhando o melhor preço limit de compra |
+| `peg bid sell <qty>` | Venda acompanhando o melhor preço limit de compra |
+| `peg offer buy <qty>` | Compra acompanhando o melhor preço limit de venda |
+| `peg offer sell <qty>` | Venda acompanhando o melhor preço limit de venda |
 | `cancel order <id>` | Remove a ordem e seu saldo |
 | `amend order <id> price <price>` | Altera o preço de uma limit |
 | `amend order <id> qty <qty>` | Substitui a quantidade restante |
@@ -30,7 +35,6 @@ Ctrl+C encerram a sessão. O livro começa vazio e os IDs reiniciam a cada execu
 | `print book` | Exibe compras e vendas, com preço, saldo e ID |
 | `help` / `exit` | Exibe a ajuda / encerra a sessão |
 
-Na sintaxe acima, escolha uma opção entre `buy` e `sell`, ou `bid` e `offer`.
 Os comandos usam minúsculas. Preços são positivos e finitos, com ponto e até duas
 casas decimais; quantidades e IDs são inteiros positivos. Entradas inválidas
 exibem um erro sem modificar o livro. Linhas vazias e espaços extras são aceitos.
@@ -78,6 +82,29 @@ cancel order 3
 - **Cancelamento:** remove todo o saldo. Ordens inexistentes, preenchidas,
   canceladas ou market não podem ser alteradas/canceladas. IDs não são reutilizados
   durante a sessão. Quantidade zero é rejeitada; a remoção usa `cancel order`.
+
+### Preço após atualização de pegged
+
+O PDF não define o preço de execução nesse caso. Aqui, preservar a chegada da
+pegged também permite que seu preço atualizado determine o trade quando ela é
+a mais antiga do par. É uma convenção do simulador; não pretende representar
+uma regra universal de exchanges.
+
+Em uma sessão nova:
+
+```text
+limit buy 10 100
+peg bid buy 5
+limit sell 10.50 10
+limit buy 11 5
+```
+
+A pegged (ID 2) acompanha 11.00 e executa 5 unidades contra a venda (ID 3) a
+**11.00**, pois é mais antiga. As outras 5 unidades da venda executam contra a
+nova compra (ID 4) a **10.50**, pois a venda é mais antiga nesse segundo par.
+Ambos os preços respeitam os limites de compra e venda. Se a venda for inserida
+antes da pegged, os dois trades ocorrem a 10.50. Os testes verificam esses
+resultados e o caso simétrico com `peg offer sell`.
 
 ## Testes
 
