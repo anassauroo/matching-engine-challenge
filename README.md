@@ -83,28 +83,10 @@ cancel order 3
   canceladas ou market não podem ser alteradas/canceladas. IDs não são reutilizados
   durante a sessão. Quantidade zero é rejeitada; a remoção usa `cancel order`.
 
-### Preço após atualização de pegged
-
-O PDF não define o preço de execução nesse caso. Aqui, preservar a chegada da
-pegged também permite que seu preço atualizado determine o trade quando ela é
-a mais antiga do par. É uma convenção do simulador; não pretende representar
-uma regra universal de exchanges.
-
-Em uma sessão nova:
-
-```text
-limit buy 10 100
-peg bid buy 5
-limit sell 10.50 10
-limit buy 11 5
-```
-
-A pegged (ID 2) acompanha 11.00 e executa 5 unidades contra a venda (ID 3) a
-**11.00**, pois é mais antiga. As outras 5 unidades da venda executam contra a
-nova compra (ID 4) a **10.50**, pois a venda é mais antiga nesse segundo par.
-Ambos os preços respeitam os limites de compra e venda. Se a venda for inserida
-antes da pegged, os dois trades ocorrem a 10.50. Os testes verificam esses
-resultados e o caso simétrico com `peg offer sell`.
+Atualizações automáticas de pegged preservam a prioridade de chegada. Se a
+atualização gerar um cruzamento, o trade usa o preço atual da ordem mais antiga
+do par. Essa escolha cobre um comportamento não especificado no enunciado e é
+verificada por testes específicos.
 
 ## Testes
 
